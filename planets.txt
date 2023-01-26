@@ -1,0 +1,10 @@
+# name    mass    radius    orbital_radius    period    colour
+sun    332946     X    0.0    X    orange
+mercury    0.06     X    0.387    X    gray
+venus    0.82     X    0.723    X    orange(change)
+earth     1.0   X     1.    X    g/b
+mars     0.11     X    1.524    X    r
+jupiter     318msun     X    5.2     X     silver
+saturn     95msun     X     9.5     X     pink
+uranus     14msun     X     19.2    X     purple
+neptune     17msun    X    30.1     X     darkblue

@@ -16,7 +16,11 @@ class Simulation(object):
         pass
 
     def SetConstants(self:object) -> None:
-        self.G = constants.G
+        self.Msun = 3
+        self.Mearth = 3
+        self.G = constants.G # 1.18638e-4 AU^3 / Msun / yr^2
+        self.dt = 0.01 # or 300? not sure
+        self.niter = 100000
 
     def InitialiseVelocities(self:object) -> None:
         pass
