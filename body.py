@@ -17,10 +17,22 @@ class Planet(object):
         # set initial position
         self.rorbit = float(orbit)
         self.position = np.array([orbit, 0.0])
+        # set constants
+        self.SetConstants()
 
-    def InitialiseVelocity(self:object, v:list) -> None:
+    def SetConstants(self:object) -> None:
+        self.Msun = 3
+        self.Mearth = 3
+        self.G = 1.18638e-4 # AU^3 / Msun / yr^2
+        self.dt = 0.01 # or 300? not sure
+        self.niter = 100000
+
+    def InitialiseVelocity(self:object, v:np.ndarray) -> None:
         """ Initialse object with given velocity """
         self.velocity = v
+
+    def InitialiseAccelerations(self:object,) -> None:
+        pass
 
     @staticmethod
     def Generate(row:tuple) -> object:
@@ -41,6 +53,30 @@ class Planet(object):
 
     # -=-=-=- Beeman Update Methods -=-=-=-
     
+    def UpdatePosition(self:object, dt:float) -> None:
+        """ Update the position """
+        self.radius_old = self.radius
+        self.radius = self.radius_old  + self.velocity * dt + \
+                      dt ** 2 * (4 * self.acceleration - self.acceleration_old) / 6
+
+    def UpdateVelocity(self:object, dt:float, planet:object) -> None:
+        """ Update the velocity """
+        self.UpdateAcceleration(dt, planet)
+        self.velocity_old = self.velocity + dt ** 2 * \
+                            (2 * self.acceleration_new + 5 * self.acceleration \
+                             - self.acceleration_old) / 6
+        # cycle accelerations
+        self.acceleration_old = self.acceleration
+        self.acceleration = self.accerelation_new
+
+
+    def UpdateAcceleration(self:object, planet:object) -> None:
+        """ Update the velocity"""
+        position = self.radius - planet.radius
+        self.acceleration_new = - self.G * planet.mass * position \
+                                / np.power(np.linalg.norm(position), 3)
+
+    # -=-=-=- Additonal Methods -=-=-=-
     def KineticEnergy(self:object) -> float:
         """ Calculates and returns kinetic energy in Joules """
         return (np.dot(self.velocity, self.velocity)) * self.mass / 2
