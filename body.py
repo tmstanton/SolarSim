@@ -1,43 +1,58 @@
  # imports
 import numpy as np
+import sys
+import utils
 
 # class
 class Planet(object):
 
     # -=-=-=- Initialisation methods -=-=-=-
 
-    def __init__(self:object, name:str, mass:float, radius:float, orbit:float, period:float, colour:str) -> None:
+    def __init__(self:object, name:str, mass:float, orbit:float, colour:str) -> None:
         """ Initialise a celestial body given certain parameters """
         self.name = name
-        if 'msun' not in mass:
-            self.mass = float(mass)
-        else:
-            self.mass = 1 * float(mass.strip('msun'))
-        self.col  = colour.strip()
-        # set initial position
-        self.rorbit = float(orbit)
-        self.position = np.array([orbit, 0.0])
+        self.colour  = colour #.strip()
         # set constants
-        self.SetConstants()
+        utils.SetConstants(self)
+        self.orbit = float(orbit) * self.EARTHR
+        self.mass = float(mass) * self.EARTHMASS
+        self.year = 0
 
-    def SetConstants(self:object) -> None:
-        self.Msun = 3
-        self.Mearth = 3
-        self.G = 1.18638e-4 # AU^3 / Msun / yr^2
-        self.dt = 0.01 # or 300? not sure
-        self.niter = 100000
+    def initialise(self, p):
+        # inital position, initial coords = (orbit radius, 0)
+        self.position = np.array([self.orbit, 0])
+        # inital velocity, tangential to position
+        # speed = sqrt(G*marsmass/r)
+        if (self.orbit == 0.0):
+            self.velocity = np.array([0, 0])
+        else:
+            vel = np.sqrt(self.G*p.mass/self.orbit)
+            self.velocity = np.array([0, vel])
+        # intial accelatation, using gravitational force law
+        if (self.orbit == 0.0):
+            self.acceleration = np.array([0, 0])
+        else:
+            self.acceleration = self.UpdateAcceleration(p)
+        # set acc_old = acc to start Beeman
+        self.acceleration_old = self.acceleration
+
+    def InitialisePosition(self:object) -> None:
+        """ Initialise object with a given position """
+        self.position = np.array([self.orbit, 0.0])
 
     def InitialiseVelocity(self:object, v:np.ndarray) -> None:
         """ Initialse object with given velocity """
-        self.velocity = v
+        self.velocity = np.array(v)
 
-    def InitialiseAccelerations(self:object,) -> None:
-        pass
+    def InitialiseAcceleration(self:object, a:np.ndarray) -> None:
+        """ Initialise the object with a given acceleration """
+        self.acceleration = np.array(a)
+        self.acceleration_old = np.array(a) # set to initialise beeman
 
     @staticmethod
     def Generate(row:tuple) -> object:
         # disect row tuple, adjust mass units
-        return Planet(*row)
+        return Planet(*row) 
 
     # -=-=-=- Euler-Cromer Update Methods -=-=-=- 
 
@@ -52,31 +67,50 @@ class Planet(object):
         self.velocity = self.velocity + a * dt
 
     # -=-=-=- Beeman Update Methods -=-=-=-
-    
-    def UpdatePosition(self:object, dt:float) -> None:
-        """ Update the position """
-        self.radius_old = self.radius
-        self.radius = self.radius_old  + self.velocity * dt + \
-                      dt ** 2 * (4 * self.acceleration - self.acceleration_old) / 6
 
-    def UpdateVelocity(self:object, dt:float, planet:object) -> None:
-        """ Update the velocity """
-        self.UpdateAcceleration(dt, planet)
-        self.velocity_old = self.velocity + dt ** 2 * \
-                            (2 * self.acceleration_new + 5 * self.acceleration \
-                             - self.acceleration_old) / 6
-        # cycle accelerations
+    def UpdatePosition(self:object) -> None:
+        # keep old position to check for year
+        self.position_old = np.copy(self.position)
+        
+        # update position first: Beeman
+        self.position = self.position_old + self.velocity*self.dt + (4*self.acceleration - self.acceleration_old)*self.dt*self.dt/6.0
+        
+
+    def UpdateVelocity(self:object, planet:object) -> None:
+        # update velocity second: Beeman
+        self.acceleration_new = self.UpdateAcceleration(planet)
+        self.velocity = self.velocity + (2*self.acceleration_new + 5*self.acceleration - self.acceleration_old)*self.dt/6.0
+        # now update acc ready for next iteration
         self.acceleration_old = self.acceleration
-        self.acceleration = self.accerelation_new
-
-
+        self.acceleration = self.acceleration_new
+        
+        
     def UpdateAcceleration(self:object, planet:object) -> None:
-        """ Update the velocity"""
-        position = self.radius - planet.radius
-        self.acceleration_new = - self.G * planet.mass * position \
-                                / np.power(np.linalg.norm(position), 3)
+        # update acc (gravitational force law)
+        pos = self.position - planet.position
+        self.acceleration = -self.G*planet.mass*pos/np.power(np.linalg.norm(pos),3)
+        return self.acceleration
 
     # -=-=-=- Additonal Methods -=-=-=-
+
     def KineticEnergy(self:object) -> float:
         """ Calculates and returns kinetic energy in Joules """
         return (np.dot(self.velocity, self.velocity)) * self.mass / 2
+    
+    def PotentialEnergy(self:object, planet_array:np.ndarray) -> float:
+        potential_energies = 0
+        for i, planet in enumerate(planet_array):
+            if self.name == planet.name:
+                continue
+            rij = np.linalg.norm(self.position - planet.position)
+            potential_energies -= self.G * self.mass * planet.mass / rij
+        return potential_energies
+
+    def NewYear(self:object) -> bool:
+        """ Determine when the body enters a new year by crossing the 
+            x axis """
+        if (self.position_old[1] < 0.0) & (self.position[1] >= 0.0):
+            self.year += 1
+            return True
+        else:
+            return False
