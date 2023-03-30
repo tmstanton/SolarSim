@@ -114,3 +114,7 @@ class Planet(object):
             return True
         else:
             return False
+        
+    def Angle(self:object) -> float:
+        # get angle from x = 0
+        return np.arctan2(self.position[1], self.position[0])
